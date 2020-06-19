@@ -438,6 +438,7 @@ double AngularDistance(const GzVector3 &_v1,
   GzVector3 v2 = _v2;
   v1.Normalize();
   v2.Normalize();
+  gzmsg << "v1: " << v1 << " v2:"<<v2<<std::endl;
   return acos(v1.Dot(v2));
 }
 
@@ -455,12 +456,12 @@ bool CheckGrip(const std::vector<GzVector3> &forces,
               std::endl;
     return false;
   }
-  if (minAngleDiff < M_PI_2)
-  {
-    std::cerr << "ERROR: CheckGrip: min angle must be at least 90 degrees (PI/2)" <<
-              std::endl;
-    return false;
-  }
+  // if (minAngleDiff < M_PI_2)
+  // {
+  //   std::cerr << "ERROR: CheckGrip: min angle must be at least 90 degrees (PI/2)" <<
+  //             std::endl;
+  //   return false;
+  // }
   std::vector<GzVector3>::const_iterator it1, it2;
   for (it1 = forces.begin(); it1 != forces.end(); ++it1)
   {
@@ -478,6 +479,7 @@ bool CheckGrip(const std::vector<GzVector3> &forces,
       float angle=acos(_v1.Dot(_v2));*/
       float angle = AngularDistance(v1, v2);
       // gzmsg<<"Angular distance between v1.len="<<v1.GetLength()<<" and v2.len="<<v2.GetLength()<<": "<<angle*180/M_PI<<std::endl;
+      gzmsg<<"Angular distance between v1 and v2: "<<angle*180/M_PI<<std::endl;
       if (angle > minAngleDiff)
       {
         float ratio;
@@ -531,12 +533,14 @@ void GazeboGraspFix::OnUpdate()
       std::string linkName = lIt->first;
       CollidingPoint &collP = lIt->second;
       GzVector3 avgForce = collP.force / collP.sum;
-      // gzmsg << "Found collision with "<<linkName<<": "<<avgForce.x<<", "<<avgForce.y<<", "<<avgForce.z<<" (avg over "<<collP.sum<<")"<<std::endl;
+      // gzmsg << "Found collision with "<<linkName<<": "<<avgForce<<" (avg over "<<collP.sum<<")"<<std::endl;
       objContInfo.appliedForces.push_back(avgForce);
       // insert the gripper (if it doesn't exist yet) and increase contact counter
       int &gContactCnt = objContInfo.grippersInvolved[collP.gripperName];
       gContactCnt++;
       int &_maxGripperContactCnt = objContInfo.maxGripperContactCnt;
+      // gzmsg << "gContactCnt=" << gContactCnt << "_maxGripperContactCnt=" << _maxGripperContactCnt << std::endl;
+
       if (gContactCnt > _maxGripperContactCnt)
       {
         _maxGripperContactCnt = gContactCnt;
@@ -559,7 +563,7 @@ void GazeboGraspFix::OnUpdate()
     const std::string &objName = ocIt->first;
     const ObjectContactInfo &objContInfo = ocIt->second;
 
-    // gzmsg<<"Number applied forces on "<<objName<<": "<<objContInfo.appliedForces.size()<<std::endl;
+    gzmsg<<"Number applied forces on "<<objName<<": "<<objContInfo.appliedForces.size()<<std::endl;
   
     // TODO: remove this test print, for issue #26 ------------------- 
 #if 0
@@ -582,16 +586,17 @@ void GazeboGraspFix::OnUpdate()
     // add to "gripped objects"
     grippedObjects.insert(objName);
 
-    //gzmsg<<"Grasp Held: "<<objName<<" grip count: "<<this->gripCounts[objName]<<std::endl;
+    gzmsg<<"Grasp Held: "<<objName<<" grip count: "<<this->gripCounts[objName]<<std::endl;
 
     int &counts = this->gripCounts[objName];
     if (counts < this->maxGripCount) ++counts;
 
     // only need to attach object if the grip count threshold is exceeded
-    if (counts <= this->gripCountThreshold)
-      continue;
+    if (counts < this->gripCountThreshold){
+      gzmsg<<"counts: "<<counts<<" threshold: "<<this->gripCountThreshold<<std::endl;
+      continue;}
 
-    //gzmsg<<"GRIPPING "<<objName<<", grip count "<<counts<<" (threshold "<<this->gripCountThreshold<<")"<<std::endl;
+    gzmsg<<"GRIPPING "<<objName<<", grip count "<<counts<<" (threshold "<<this->gripCountThreshold<<")"<<std::endl;
 
     // find out if any of the grippers involved in the grasp is already grasping the object.
     // If there is no such gripper, attach it to the gripper which has most contact points.
@@ -601,8 +606,8 @@ void GazeboGraspFix::OnUpdate()
     if (isAttachedToGripper)
     {
       // the object is already attached to a gripper, so it does not need to be attached.
-      // gzmsg << "GazeboGraspFix has found that object "<<
-      //     gripper.attachedObject()<<" is already attached to gripper "<<gripperName;
+      gzmsg << "GazeboGraspFix has found that object ";//<<
+          //gripper.attachedObject()<<" is already attached to gripper "<<gripperName;
       continue;
     }
 
